@@ -1,0 +1,1088 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dashboard de Comentarios (CSV) — Autocontenido</title>
+  <style>
+    :root{
+      --bg:#0b1220;
+      --panel:#101a2e;
+      --panel2:#0f1830;
+      --text:#e7eefc;
+      --muted:#a9b7d6;
+      --border:#243351;
+      --accent:#7aa7ff;
+      --good:#22c55e;
+      --bad:#ef4444;
+      --neu:#94a3b8;
+      --warn:#f59e0b;
+      --shadow: 0 10px 30px rgba(0,0,0,.25);
+      --radius: 14px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+    }
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      font-family: var(--sans);
+      background: radial-gradient(1200px 600px at 20% 10%, rgba(122,167,255,.15), transparent 60%),
+                  radial-gradient(900px 500px at 80% 30%, rgba(34,197,94,.10), transparent 60%),
+                  var(--bg);
+      color: var(--text);
+      padding: 22px;
+    }
+    header{
+      display:flex;
+      gap:14px;
+      align-items:flex-start;
+      justify-content:space-between;
+      margin-bottom: 18px;
+    }
+    h1{
+      margin:0 0 6px 0;
+      font-size: 20px;
+      letter-spacing:.2px;
+    }
+    .sub{
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+      max-width: 980px;
+    }
+    .controls{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    .btn, input[type="file"], input[type="text"], select{
+      background: rgba(16,26,46,.9);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      box-shadow: 0 1px 0 rgba(255,255,255,.03) inset;
+    }
+    input[type="file"]{
+      padding: 8px 10px;
+      max-width: 320px;
+    }
+    .btn{
+      cursor:pointer;
+      user-select:none;
+    }
+    .btn:hover{ border-color: rgba(122,167,255,.65); }
+    .btn:active{ transform: translateY(1px); }
+    .layout{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 14px;
+    }
+    .card{
+      background: linear-gradient(180deg, rgba(16,26,46,.94), rgba(16,26,46,.82));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px 14px 12px;
+      min-height: 80px;
+    }
+    .card h2{
+      margin:0 0 10px 0;
+      font-size: 14px;
+      letter-spacing:.2px;
+      color: #d6e5ff;
+    }
+    .hint{
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 6px;
+      line-height: 1.35;
+    }
+    .kpis{
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 10px;
+      margin-top: 2px;
+    }
+    .kpi{
+      border: 1px solid rgba(36,51,81,.85);
+      background: rgba(15,24,48,.7);
+      border-radius: 12px;
+      padding: 10px 10px 9px;
+    }
+    .kpi .label{
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+    .kpi .value{
+      font-family: var(--mono);
+      font-size: 18px;
+      letter-spacing:.2px;
+    }
+    .row{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+    }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      border:1px solid rgba(36,51,81,.85);
+      background: rgba(15,24,48,.7);
+      padding: 7px 10px;
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .dot{
+      width:10px; height:10px; border-radius:999px;
+      background: var(--neu);
+    }
+
+    /* Pseudo chart bars */
+    .bars{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .barRow{
+      display:grid;
+      grid-template-columns: 90px 1fr 60px;
+      align-items:center;
+      gap:10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .bar{
+      height: 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(36,51,81,.85);
+      background: rgba(15,24,48,.7);
+      overflow:hidden;
+      position:relative;
+    }
+    .fill{
+      height: 100%;
+      width: 0%;
+      background: rgba(122,167,255,.9);
+    }
+    .fill.good{ background: rgba(34,197,94,.85); }
+    .fill.bad{ background: rgba(239,68,68,.85); }
+    .fill.neu{ background: rgba(148,163,184,.85); }
+
+    /* Tables */
+    table{
+      width:100%;
+      border-collapse: collapse;
+      overflow:hidden;
+      border-radius: 12px;
+      border: 1px solid rgba(36,51,81,.85);
+      background: rgba(15,24,48,.6);
+    }
+    th, td{
+      text-align:left;
+      padding: 9px 10px;
+      border-bottom: 1px solid rgba(36,51,81,.65);
+      vertical-align: top;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    th{
+      color: #d6e5ff;
+      font-size: 12px;
+      background: rgba(16,26,46,.7);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    tr:hover td{ background: rgba(122,167,255,.06); color: #dfeaff; }
+    .badge{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(36,51,81,.85);
+      background: rgba(16,26,46,.6);
+      color: var(--muted);
+      white-space:nowrap;
+    }
+    .badge.pos{ border-color: rgba(34,197,94,.55); color: rgba(197,255,214,.95); }
+    .badge.neg{ border-color: rgba(239,68,68,.55); color: rgba(255,210,210,.95); }
+    .badge.neu{ border-color: rgba(148,163,184,.55); color: rgba(228,233,243,.95); }
+
+    .col-12{ grid-column: span 12; }
+    .col-6{ grid-column: span 6; }
+    .col-5{ grid-column: span 5; }
+    .col-7{ grid-column: span 7; }
+    .col-4{ grid-column: span 4; }
+    .col-8{ grid-column: span 8; }
+
+    @media (max-width: 980px){
+      .col-6,.col-5,.col-7,.col-4,.col-8{ grid-column: span 12; }
+      .kpis{ grid-template-columns: 1fr; }
+      .barRow{ grid-template-columns: 90px 1fr 60px; }
+      header{ flex-direction:column; align-items:flex-start; }
+      .controls{ justify-content:flex-start; }
+    }
+
+    .emptyState{
+      border: 1px dashed rgba(122,167,255,.45);
+      background: rgba(15,24,48,.4);
+      border-radius: var(--radius);
+      padding: 16px;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 13px;
+    }
+
+    .footerNote{
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      margin-top: 8px;
+    }
+
+    .warn{
+      color: rgba(255,226,186,.95);
+      background: rgba(245,158,11,.14);
+      border: 1px solid rgba(245,158,11,.35);
+      padding: 8px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      display:none;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="layout">
+    <header>
+      <div>
+        <h1>Dashboard interactivo de comentarios (CSV) — sin dependencias</h1>
+        <div class="sub">
+          Carga un CSV local y obtén un resumen: sentimiento heurístico (positivo/negativo/neutro), palabras frecuentes, distribución temporal,
+          top usuarios y un explorador con filtros. Todo se procesa en tu navegador (sin servidores externos).
+        </div>
+      </div>
+
+      <div class="controls">
+        <input id="fileInput" type="file" accept=".csv,text/csv" />
+        <button class="btn" id="loadSampleBtn" title="Carga un dataset pequeño de ejemplo (se genera en memoria).">Cargar ejemplo</button>
+        <button class="btn" id="resetBtn" title="Limpia el dashboard.">Reset</button>
+      </div>
+    </header>
+
+    <div id="warning" class="warn"></div>
+
+    <div id="empty" class="emptyState">
+      Selecciona un archivo CSV para comenzar. El CSV debe incluir como mínimo estas columnas: comentario, fecha, usuario, likes, publicacion, redsocial.
+      La lectura asume un CSV razonablemente bien formado (con comillas dobles para campos con comas o saltos de línea).
+    </div>
+
+    <div id="dashboard" class="grid" style="display:none;">
+      <section class="card col-12" id="sectionResumen">
+        <h2>Resumen general</h2>
+        <div class="kpis">
+          <div class="kpi">
+            <div class="label">Total de comentarios</div>
+            <div class="value" id="kpiTotal">—</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Usuarios únicos</div>
+            <div class="value" id="kpiUsers">—</div>
+          </div>
+          <div class="kpi">
+            <div class="label">Rango de fechas</div>
+            <div class="value" id="kpiDates">—</div>
+          </div>
+        </div>
+        <div class="footerNote" id="datasetInfo"></div>
+      </section>
+
+      <section class="card col-5" id="sectionSentimiento">
+        <h2>Sentimiento global</h2>
+        <div class="row" style="margin-bottom:10px;">
+          <span class="pill"><span class="dot" style="background:rgba(34,197,94,.9)"></span> Positivo</span>
+          <span class="pill"><span class="dot" style="background:rgba(239,68,68,.9)"></span> Negativo</span>
+          <span class="pill"><span class="dot" style="background:rgba(148,163,184,.9)"></span> Neutro</span>
+        </div>
+        <div class="bars" id="sentBars"></div>
+        <div class="hint">
+          Nota: el sentimiento es heurístico (palabras clave y reglas simples). Se recomienda usarlo como indicador orientativo, no como verdad absoluta.
+        </div>
+      </section>
+
+      <section class="card col-7" id="sectionPalabras">
+        <h2>Temas y palabras frecuentes</h2>
+        <div class="hint" style="margin-bottom:10px;">
+          Se tokeniza el texto, se normaliza (minúsculas, sin tildes), se eliminan stopwords básicas en español y tokens muy cortos. Se muestran las 20 más frecuentes.
+        </div>
+        <div style="max-height: 320px; overflow:auto; border-radius: 12px;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:60%;">Palabra</th>
+                <th style="width:40%;">Frecuencia</th>
+              </tr>
+            </thead>
+            <tbody id="wordsTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card col-12" id="sectionTemporal">
+        <h2>Distribución temporal</h2>
+        <div class="hint" style="margin-bottom:10px;">
+          Evolución del número de comentarios por día (pseudo-barras). Si faltan fechas válidas, este bloque mostrará solo las filas que pudo interpretar.
+        </div>
+        <div class="bars" id="timeBars"></div>
+      </section>
+
+      <section class="card col-6" id="sectionTopUsers">
+        <h2>Top usuarios</h2>
+        <div class="hint" style="margin-bottom:10px;">
+          Los 10 usuarios con más comentarios. Se muestra cantidad y porcentaje sobre el total.
+        </div>
+        <div style="max-height: 320px; overflow:auto; border-radius: 12px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Usuario</th>
+                <th style="width:120px;">Comentarios</th>
+                <th style="width:120px;">%</th>
+              </tr>
+            </thead>
+            <tbody id="usersTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card col-6" id="sectionExplorador">
+        <h2>Explorador de comentarios</h2>
+        <div class="row" style="margin-bottom:10px;">
+          <input id="searchInput" type="text" placeholder="Buscar por palabra clave…" style="flex:1; min-width:220px;" />
+          <select id="sentSelect" style="min-width:170px;">
+            <option value="all">Sentimiento: todos</option>
+            <option value="positivo">Sentimiento: positivo</option>
+            <option value="negativo">Sentimiento: negativo</option>
+            <option value="neutro">Sentimiento: neutro</option>
+          </select>
+          <select id="networkSelect" style="min-width:170px;">
+            <option value="all">Red social: todas</option>
+          </select>
+        </div>
+
+        <div class="row" style="margin-bottom:10px;">
+          <span class="pill" id="filteredCount">Filtrados: —</span>
+          <span class="pill" id="avgLikes">Likes promedio: —</span>
+          <span class="pill" id="medianLikes">Likes mediana: —</span>
+        </div>
+
+        <div style="max-height: 420px; overflow:auto; border-radius: 12px;">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:42%;">Comentario</th>
+                <th style="width:14%;">Usuario</th>
+                <th style="width:12%;">Fecha</th>
+                <th style="width:10%;">Likes</th>
+                <th style="width:16%;">Publicación</th>
+                <th style="width:6%;">Sent.</th>
+              </tr>
+            </thead>
+            <tbody id="commentsTable"></tbody>
+          </table>
+        </div>
+
+        <div class="hint">
+          Tip: el buscador hace coincidencia simple (incluye) sobre comentario, usuario, publicación y redsocial.
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    /**********************************************************************
+     * Dashboard autocontenido: carga CSV -> parsea -> procesa -> renderiza
+     * - Sin librerías externas
+     * - CSV "razonablemente bien formado" (soporta comillas dobles)
+     **********************************************************************/
+
+    // Estado global del dashboard
+    const state = {
+      rows: [],          // filas originales (objetos con columnas)
+      enriched: [],      // filas con sentimiento y fecha normalizada
+      headers: [],       // encabezados detectados
+      required: ["comentario", "fecha", "usuario", "likes", "publicacion", "redsocial"]
+    };
+
+    // Stopwords básicas en español (puedes ampliar si lo deseas)
+    const STOPWORDS_ES = new Set([
+      "a","al","algo","algunas","algunos","ante","antes","como","con","contra","cual","cuando","de","del","desde","donde",
+      "dos","el","ella","ellas","ellos","en","entre","era","erais","eran","eras","eres","es","esa","esas","ese","eso","esos",
+      "esta","estaba","estabais","estaban","estabas","estad","estada","estadas","estado","estados","estamos","estando","estar",
+      "estaremos","estara","estaran","estaras","estare","estareis","estaria","estariais","estarian","estarias","estas","este",
+      "estemos","esto","estos","estoy","estuve","estuvierais","estuvieran","estuvieras","estuvieron","estuviese","estuvieseis",
+      "estuviesen","estuvieses","estuvimos","estuviste","estuvisteis","estuviéramos","estuviésemos","estuvo","fue","fuera","fuerais",
+      "fueran","fueras","fueron","fuese","fueseis","fuesen","fueses","fui","fuimos","fuiste","fuisteis","ha","habia","habiais","habian",
+      "habias","habida","habidas","habido","habidos","habiendo","habremos","habra","habran","habras","habre","habreis","habria","habriais",
+      "habrian","habrias","han","has","hasta","hay","haya","hayais","hayan","hayas","he","hemos","hube","hubierais","hubieran","hubieras",
+      "hubieron","hubiese","hubieseis","hubiesen","hubieses","hubimos","hubiste","hubisteis","hubiéramos","hubiésemos","hubo","la","las",
+      "le","les","lo","los","mas","me","mi","mis","mucho","muy","más","mí","mía","mías","mío","míos","nada","ni","no","nos","nosotras",
+      "nosotros","nuestra","nuestras","nuestro","nuestros","o","os","otra","otras","otro","otros","para","pero","poco","por","porque","que",
+      "quien","se","sea","seais","sean","seas","ser","seremos","sera","seran","seras","sere","sereis","seria","seriais","serian","serias",
+      "si","sido","siendo","sin","sobre","sois","somos","son","soy","su","sus","suya","suyas","suyo","suyos","tambien","tanto","te","tendremos",
+      "tendra","tendran","tendras","tendre","tendreis","tendria","tendrias","tendrian","tened","teneis","tenemos","tener","tenga","tengais",
+      "tengan","tengas","tengo","tenia","teniais","teniamos","tenian","tenias","tenida","tenidas","tenido","tenidos","teniendo","tenéis",
+      "ti","tiene","tienen","toda","todas","todo","todos","tu","tus","tuve","tuvierais","tuvieran","tuvieras","tuvieron","tuviese","tuvieseis",
+      "tuviesen","tuvieses","tuvimos","tuviste","tuvisteis","tuviéramos","tuviésemos","tuvo","un","una","uno","unos","unas","usted","ustedes",
+      "va","vamos","van","vaya","verdad","y","ya","yo"
+    ]);
+
+    // Palabras clave simples para sentimiento (heurístico)
+    const POSITIVE_WORDS = [
+      "excelente","genial","buenisimo","buenísimo","bueno","buena","buenas","buenos","me encanta","encanta","amo","perfecto","perfecta",
+      "gracias","gran","increible","increíble","maravilloso","maravillosa","top","feliz","contento","contenta","recomiendo","recomendable",
+      "impresionante","brutal","mejor","hermoso","hermosa","muy bien","super","súper"
+    ];
+    const NEGATIVE_WORDS = [
+      "malo","mala","pesimo","pésimo","horrible","terrible","asco","odio","estafa","engaño","enganio","fraude","decepcion","decepción",
+      "lento","lenta","caro","cara","nunca","jamás","jamas","queja","quejas","malisimo","malísimo","vergüenza","verguenza","fatal","pésima",
+      "no sirve","inutil","inútil","molesto","molesta","enojado","enojada"
+    ];
+
+    // Elementos UI
+    const el = {
+      fileInput: document.getElementById("fileInput"),
+      loadSampleBtn: document.getElementById("loadSampleBtn"),
+      resetBtn: document.getElementById("resetBtn"),
+      empty: document.getElementById("empty"),
+      dashboard: document.getElementById("dashboard"),
+      warning: document.getElementById("warning"),
+      kpiTotal: document.getElementById("kpiTotal"),
+      kpiUsers: document.getElementById("kpiUsers"),
+      kpiDates: document.getElementById("kpiDates"),
+      datasetInfo: document.getElementById("datasetInfo"),
+      sentBars: document.getElementById("sentBars"),
+      wordsTable: document.getElementById("wordsTable"),
+      timeBars: document.getElementById("timeBars"),
+      usersTable: document.getElementById("usersTable"),
+      searchInput: document.getElementById("searchInput"),
+      sentSelect: document.getElementById("sentSelect"),
+      networkSelect: document.getElementById("networkSelect"),
+      filteredCount: document.getElementById("filteredCount"),
+      avgLikes: document.getElementById("avgLikes"),
+      medianLikes: document.getElementById("medianLikes"),
+      commentsTable: document.getElementById("commentsTable")
+    };
+
+    /**********************************************************************
+     * 1) Carga del CSV (FileReader) + parseo básico (sin librerías)
+     **********************************************************************/
+    el.fileInput.addEventListener("change", async (ev) => {
+      const file = ev.target.files && ev.target.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        loadFromCSVText(text, file.name);
+      } catch (err) {
+        showWarning("No se pudo leer el archivo. Asegúrate de que sea un CSV válido.");
+        console.error(err);
+      }
+    });
+
+    el.loadSampleBtn.addEventListener("click", () => {
+      // Dataset pequeño de ejemplo (en memoria). Sirve para probar la UI sin CSV.
+      const sample = [
+        ["comentario","fecha","usuario","likes","publicacion","redsocial"],
+        ["Excelente contenido, me encanta. Gracias por compartir!","2026-02-20","@ana",15,"Post: IA en PYMES","linkedin"],
+        ["No sirve, muy malo y lento. Decepción total.","2026-02-20","@carlos",2,"Post: IA en PYMES","linkedin"],
+        ["Interesante, pero me gustaría más detalles.","2026-02-21","@ana",5,"Post: IA en PYMES","linkedin"],
+        ["Genial explicación, súper claro.","2026-02-21","@maria",22,"Video: Automatización","instagram"],
+        ["Qué vergüenza, esto parece una estafa.","2026-02-22","@lucas",1,"Video: Automatización","instagram"],
+        ["Buenísimo, lo voy a recomendar a mi equipo.","2026-02-22","@sofia",12,"Artículo: Casos reales","facebook"],
+        ["No estoy de acuerdo, me parece caro para lo que ofrece.","2026-02-23","@juan",3,"Artículo: Casos reales","facebook"],
+        ["Perfecto, justo lo que necesitaba.","2026-02-23","@maria",18,"Video: Automatización","instagram"],
+        ["Neutral: sólo paso a leer.","2026-02-23","@reader",0,"Post: IA en PYMES","linkedin"]
+      ].map(r => r.join(",")).join("\n");
+      loadFromCSVText(sample, "ejemplo.csv");
+    });
+
+    el.resetBtn.addEventListener("click", () => {
+      resetAll();
+    });
+
+    function resetAll(){
+      state.rows = [];
+      state.enriched = [];
+      state.headers = [];
+      el.fileInput.value = "";
+      el.searchInput.value = "";
+      el.sentSelect.value = "all";
+      el.networkSelect.value = "all";
+      el.dashboard.style.display = "none";
+      el.empty.style.display = "block";
+      el.warning.style.display = "none";
+      el.warning.textContent = "";
+    }
+
+    function showWarning(msg){
+      el.warning.textContent = msg;
+      el.warning.style.display = "block";
+    }
+
+    function clearWarning(){
+      el.warning.style.display = "none";
+      el.warning.textContent = "";
+    }
+
+    function loadFromCSVText(csvText, filename){
+      clearWarning();
+
+      // Parseo CSV -> array de arrays (filas x columnas)
+      const parsed = parseCSV(csvText);
+      if (!parsed || parsed.length < 2){
+        showWarning("El CSV no contiene suficientes filas (se necesita encabezado + al menos 1 comentario).");
+        return;
+      }
+
+      // Encabezados (normalizados)
+      const rawHeaders = parsed[0].map(h => (h ?? "").trim());
+      const headers = rawHeaders.map(h => normalizeHeader(h));
+      state.headers = headers;
+
+      // Validación de columnas mínimas
+      const missing = state.required.filter(r => !headers.includes(r));
+      if (missing.length){
+        showWarning("Faltan columnas requeridas: " + missing.join(", ") + ". Se intentará cargar, pero el análisis puede quedar incompleto.");
+      }
+
+      // Construcción de objetos por fila
+      const rows = [];
+      for (let i = 1; i < parsed.length; i++){
+        const cols = parsed[i];
+        if (!cols || cols.length === 0) continue;
+
+        const obj = {};
+        for (let c = 0; c < headers.length; c++){
+          const key = headers[c] || ("col_" + c);
+          obj[key] = (cols[c] ?? "").trim();
+        }
+        rows.push(obj);
+      }
+
+      state.rows = rows;
+
+      // Procesamiento y renderizado
+      state.enriched = enrichRows(rows);
+      renderAll(filename);
+    }
+
+    /**********************************************************************
+     * 2) Parser CSV básico con soporte de comillas dobles
+     * - Divide en filas/columnas respetando comillas
+     * - Soporta comas y saltos de línea dentro de comillas
+     **********************************************************************/
+    function parseCSV(text){
+      // Normaliza saltos de línea
+      const s = (text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+      const rows = [];
+      let row = [];
+      let cur = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < s.length; i++){
+        const ch = s[i];
+        const next = s[i+1];
+
+        if (ch === '"'){
+          // Doble comilla escapada dentro de un campo entre comillas -> ""
+          if (inQuotes && next === '"'){
+            cur += '"';
+            i++;
+          } else {
+            inQuotes = !inQuotes;
+          }
+          continue;
+        }
+
+        if (ch === "," && !inQuotes){
+          row.push(cur);
+          cur = "";
+          continue;
+        }
+
+        if (ch === "\n" && !inQuotes){
+          row.push(cur);
+          rows.push(row);
+          row = [];
+          cur = "";
+          continue;
+        }
+
+        cur += ch;
+      }
+
+      // Último campo/fila
+      row.push(cur);
+      rows.push(row);
+
+      // Filtra filas totalmente vacías
+      return rows.filter(r => r.some(cell => String(cell ?? "").trim() !== ""));
+    }
+
+    function normalizeHeader(h){
+      // Normaliza encabezados para mapear bien el dataset
+      // ejemplo: "Red Social" -> "redsocial"
+      const base = normalizeText(String(h || ""));
+      return base.replace(/\s+/g, "");
+    }
+
+    /**********************************************************************
+     * 3) Enriquecimiento: sentimiento, likes numéricos, fecha normalizada
+     **********************************************************************/
+    function enrichRows(rows){
+      return rows.map(r => {
+        const comentario = String(r.comentario ?? "");
+        const usuario = String(r.usuario ?? "");
+        const publicacion = String(r.publicacion ?? "");
+        const redsocial = String(r.redsocial ?? "");
+
+        const likesNum = toNumber(r.likes);
+        const dateObj = parseDateSafe(r.fecha);
+        const dateISO = dateObj ? toISODate(dateObj) : "";
+
+        const sentiment = classifySentiment(comentario);
+
+        return {
+          ...r,
+          comentario,
+          usuario,
+          publicacion,
+          redsocial,
+          likes: likesNum,
+          _dateObj: dateObj,
+          _dateISO: dateISO,
+          _sent: sentiment
+        };
+      });
+    }
+
+    function toNumber(v){
+      // Convierte likes a número (acepta "1.234" o "1,234" de forma simple)
+      const s = String(v ?? "").trim();
+      if (!s) return 0;
+      const cleaned = s.replace(/\./g, "").replace(/,/g, "."); // heurístico
+      const n = Number(cleaned);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function parseDateSafe(v){
+      // Acepta ISO y variantes comunes parseables por Date.
+      const s = String(v ?? "").trim();
+      if (!s) return null;
+      const d = new Date(s);
+      if (!isNaN(d.getTime())) return d;
+
+      // Intento adicional: YYYY-MM-DD (si viniera con hora extra o formato raro)
+      const m = s.match(/^(\d{4})[-\/](\d{2})[-\/](\d{2})/);
+      if (m){
+        const y = Number(m[1]), mo = Number(m[2]) - 1, da = Number(m[3]);
+        const d2 = new Date(Date.UTC(y, mo, da));
+        if (!isNaN(d2.getTime())) return d2;
+      }
+      return null;
+    }
+
+    function toISODate(d){
+      // YYYY-MM-DD en UTC para consistencia
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2,"0");
+      const da = String(d.getUTCDate()).padStart(2,"0");
+      return `${y}-${m}-${da}`;
+    }
+
+    /**********************************************************************
+     * 4) Clasificación simple de sentimiento (heurística)
+     * - Normaliza texto
+     * - Suma puntos por coincidencias de palabras/expresiones
+     **********************************************************************/
+    function classifySentiment(text){
+      const tRaw = String(text || "");
+      const t = normalizeText(tRaw);
+
+      let score = 0;
+
+      // Reglas por expresiones (incluye "me encanta", "no sirve", etc.)
+      for (const p of POSITIVE_WORDS){
+        const pn = normalizeText(p);
+        if (pn.includes(" ")){
+          if (t.includes(pn)) score += 2;
+        }
+      }
+      for (const n of NEGATIVE_WORDS){
+        const nn = normalizeText(n);
+        if (nn.includes(" ")){
+          if (t.includes(nn)) score -= 2;
+        }
+      }
+
+      // Reglas por tokens
+      const tokens = tokenize(t);
+      for (const tok of tokens){
+        // Nota: aquí usamos listas tal cual; al normalizar arriba, hacemos match robusto
+        if (POSITIVE_WORDS.map(x=>normalizeText(x)).includes(tok)) score += 1;
+        if (NEGATIVE_WORDS.map(x=>normalizeText(x)).includes(tok)) score -= 1;
+      }
+
+      // Intensificadores simples
+      if (t.includes("muy ") || t.includes("super ") || t.includes("súper ")) score += (score > 0 ? 1 : 0);
+      if (t.includes("nunca") || t.includes("jamas") || t.includes("jamás")) score -= 1;
+
+      if (score >= 2) return "positivo";
+      if (score <= -2) return "negativo";
+      return "neutro";
+    }
+
+    /**********************************************************************
+     * 5) Normalización/tokenización
+     **********************************************************************/
+    function normalizeText(s){
+      return String(s || "")
+        .toLowerCase()
+        .normalize("NFD")               // separa tildes
+        .replace(/[\u0300-\u036f]/g,"") // elimina tildes
+        .replace(/[^\p{L}\p{N}\s@#]/gu," ") // deja letras/números/espacios y @#
+        .replace(/\s+/g," ")
+        .trim();
+    }
+
+    function tokenize(normalized){
+      if (!normalized) return [];
+      return normalized.split(" ").map(x => x.trim()).filter(Boolean);
+    }
+
+    /**********************************************************************
+     * 6) Render principal
+     **********************************************************************/
+    function renderAll(filename){
+      el.empty.style.display = "none";
+      el.dashboard.style.display = "grid";
+
+      renderResumen(filename);
+      renderSentimiento();
+      renderPalabrasFrecuentes();
+      renderTemporal();
+      renderTopUsuarios();
+      setupExplorerControls();
+      renderExplorer(); // inicial
+
+      // Construye selector de red social desde datos
+      renderNetworkSelect();
+    }
+
+    function renderResumen(filename){
+      const total = state.enriched.length;
+      const users = new Set(state.enriched.map(r => String(r.usuario || "").trim()).filter(Boolean)).size;
+
+      // Rango de fechas (solo filas con fecha válida)
+      const dates = state.enriched.map(r => r._dateObj).filter(Boolean).map(d => d.getTime()).sort((a,b)=>a-b);
+      let range = "—";
+      if (dates.length){
+        const min = new Date(dates[0]);
+        const max = new Date(dates[dates.length - 1]);
+        range = `${toISODate(min)} a ${toISODate(max)}`;
+      } else {
+        range = "Sin fechas válidas";
+      }
+
+      el.kpiTotal.textContent = formatInt(total);
+      el.kpiUsers.textContent = formatInt(users);
+      el.kpiDates.textContent = range;
+
+      const headerInfo = `Archivo: ${filename || "—"} | Columnas detectadas: ${state.headers.length} | Comentarios procesados: ${total}`;
+      el.datasetInfo.textContent = headerInfo;
+    }
+
+    function renderSentimiento(){
+      const counts = { positivo:0, negativo:0, neutro:0 };
+      for (const r of state.enriched) counts[r._sent] = (counts[r._sent] || 0) + 1;
+
+      const total = state.enriched.length || 1;
+      const items = [
+        { key:"positivo", label:"Positivo", val:counts.positivo, cls:"good" },
+        { key:"negativo", label:"Negativo", val:counts.negativo, cls:"bad" },
+        { key:"neutro",   label:"Neutro",   val:counts.neutro,   cls:"neu" }
+      ];
+
+      el.sentBars.innerHTML = "";
+      for (const it of items){
+        const pct = Math.round((it.val / total) * 1000) / 10; // 1 decimal
+        const row = document.createElement("div");
+        row.className = "barRow";
+        row.innerHTML = `
+          <div>${it.label}</div>
+          <div class="bar"><div class="fill ${it.cls}" style="width:${pct}%;"></div></div>
+          <div style="text-align:right; font-family:var(--mono);">${pct}%</div>
+        `;
+        el.sentBars.appendChild(row);
+      }
+    }
+
+    function renderPalabrasFrecuentes(){
+      // Cuenta palabras (ignorando stopwords)
+      const freq = new Map();
+
+      for (const r of state.enriched){
+        const t = normalizeText(r.comentario);
+        const tokens = tokenize(t);
+
+        for (const tok of tokens){
+          if (tok.length < 3) continue;
+          if (STOPWORDS_ES.has(tok)) continue;
+          // descarta tokens puramente numéricos
+          if (/^\d+$/g.test(tok)) continue;
+          freq.set(tok, (freq.get(tok) || 0) + 1);
+        }
+      }
+
+      const top = Array.from(freq.entries())
+        .sort((a,b) => b[1]-a[1])
+        .slice(0, 20);
+
+      el.wordsTable.innerHTML = "";
+      if (!top.length){
+        el.wordsTable.innerHTML = `<tr><td colspan="2">Sin datos suficientes para extraer palabras frecuentes.</td></tr>`;
+        return;
+      }
+
+      for (const [word, count] of top){
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td style="color:#dfeaff; font-family:var(--mono);">${escapeHTML(word)}</td>
+          <td style="font-family:var(--mono);">${formatInt(count)}</td>
+        `;
+        el.wordsTable.appendChild(tr);
+      }
+    }
+
+    function renderTemporal(){
+      // Agrupa por día (YYYY-MM-DD)
+      const byDay = new Map();
+      for (const r of state.enriched){
+        if (!r._dateISO) continue;
+        byDay.set(r._dateISO, (byDay.get(r._dateISO) || 0) + 1);
+      }
+
+      const series = Array.from(byDay.entries()).sort((a,b) => a[0].localeCompare(b[0]));
+      el.timeBars.innerHTML = "";
+
+      if (!series.length){
+        el.timeBars.innerHTML = `<div class="hint">No se detectaron fechas válidas para graficar la distribución temporal.</div>`;
+        return;
+      }
+
+      const max = Math.max(...series.map(x => x[1])) || 1;
+
+      // Si hay muchísimos días, mostramos los últimos 60 para legibilidad (sin perder el conteo total del dataset)
+      const view = series.length > 60 ? series.slice(series.length - 60) : series;
+
+      for (const [day, count] of view){
+        const pct = (count / max) * 100;
+        const row = document.createElement("div");
+        row.className = "barRow";
+        row.innerHTML = `
+          <div style="font-family:var(--mono);">${day}</div>
+          <div class="bar"><div class="fill" style="width:${pct}%;"></div></div>
+          <div style="text-align:right; font-family:var(--mono);">${formatInt(count)}</div>
+        `;
+        el.timeBars.appendChild(row);
+      }
+
+      if (series.length > 60){
+        const note = document.createElement("div");
+        note.className = "hint";
+        note.textContent = `Mostrando los últimos 60 días con comentarios (de ${series.length} días totales con registros).`;
+        el.timeBars.appendChild(note);
+      }
+    }
+
+    function renderTopUsuarios(){
+      const counts = new Map();
+      for (const r of state.enriched){
+        const u = String(r.usuario || "").trim() || "(sin usuario)";
+        counts.set(u, (counts.get(u) || 0) + 1);
+      }
+
+      const total = state.enriched.length || 1;
+      const top = Array.from(counts.entries())
+        .sort((a,b) => b[1]-a[1])
+        .slice(0, 10);
+
+      el.usersTable.innerHTML = "";
+      if (!top.length){
+        el.usersTable.innerHTML = `<tr><td colspan="3">Sin datos de usuarios.</td></tr>`;
+        return;
+      }
+
+      for (const [user, count] of top){
+        const pct = Math.round((count / total) * 1000) / 10;
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td style="color:#dfeaff;">${escapeHTML(user)}</td>
+          <td style="font-family:var(--mono);">${formatInt(count)}</td>
+          <td style="font-family:var(--mono);">${pct}%</td>
+        `;
+        el.usersTable.appendChild(tr);
+      }
+    }
+
+    /**********************************************************************
+     * 7) Explorador: filtros + tabla de comentarios
+     **********************************************************************/
+    function setupExplorerControls(){
+      // Evita duplicar listeners si se recarga un CSV
+      el.searchInput.oninput = () => renderExplorer();
+      el.sentSelect.onchange = () => renderExplorer();
+      el.networkSelect.onchange = () => renderExplorer();
+    }
+
+    function renderNetworkSelect(){
+      const networks = new Set(state.enriched.map(r => String(r.redsocial || "").trim()).filter(Boolean));
+      const sorted = Array.from(networks).sort((a,b)=>a.localeCompare(b));
+
+      // conserva "all"
+      const current = el.networkSelect.value || "all";
+      el.networkSelect.innerHTML = `<option value="all">Red social: todas</option>` +
+        sorted.map(n => `<option value="${escapeAttr(n)}">${escapeHTML(n)}</option>`).join("");
+
+      // intenta mantener selección si existe
+      if (sorted.includes(current)) el.networkSelect.value = current;
+      else el.networkSelect.value = "all";
+    }
+
+    function renderExplorer(){
+      const q = normalizeText(el.searchInput.value || "");
+      const sent = el.sentSelect.value;
+      const net = el.networkSelect.value;
+
+      let filtered = state.enriched.slice();
+
+      if (sent !== "all"){
+        filtered = filtered.filter(r => r._sent === sent);
+      }
+      if (net !== "all"){
+        filtered = filtered.filter(r => String(r.redsocial || "").trim() === net);
+      }
+      if (q){
+        filtered = filtered.filter(r => {
+          const hay = normalizeText(
+            `${r.comentario || ""} ${r.usuario || ""} ${r.publicacion || ""} ${r.redsocial || ""}`
+          );
+          return hay.includes(q);
+        });
+      }
+
+      // Métricas simples sobre filtrado
+      el.filteredCount.textContent = `Filtrados: ${formatInt(filtered.length)} / ${formatInt(state.enriched.length)}`;
+
+      const likesArr = filtered.map(r => r.likes).filter(n => Number.isFinite(n));
+      const avg = likesArr.length ? (likesArr.reduce((a,b)=>a+b,0) / likesArr.length) : 0;
+      const med = median(likesArr);
+
+      el.avgLikes.textContent = `Likes promedio: ${format1(avg)}`;
+      el.medianLikes.textContent = `Likes mediana: ${format1(med)}`;
+
+      // Render tabla: para performance, limita a 500 filas visibles (puedes ajustar)
+      const LIMIT = 500;
+      const view = filtered.slice(0, LIMIT);
+
+      el.commentsTable.innerHTML = "";
+      if (!view.length){
+        el.commentsTable.innerHTML = `<tr><td colspan="6">No hay comentarios que coincidan con los filtros.</td></tr>`;
+        return;
+      }
+
+      for (const r of view){
+        const sentBadge = sentimentBadge(r._sent);
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td style="color:#dfeaff; line-height:1.35;">${escapeHTML(r.comentario || "")}</td>
+          <td>${escapeHTML(String(r.usuario || ""))}</td>
+          <td style="font-family:var(--mono);">${escapeHTML(r._dateISO || String(r.fecha || ""))}</td>
+          <td style="font-family:var(--mono);">${formatInt(r.likes || 0)}</td>
+          <td>${escapeHTML(String(r.publicacion || ""))}</td>
+          <td>${sentBadge}</td>
+        `;
+        el.commentsTable.appendChild(tr);
+      }
+
+      if (filtered.length > LIMIT){
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td colspan="6">Mostrando ${formatInt(LIMIT)} de ${formatInt(filtered.length)} comentarios filtrados. Ajusta filtros para acotar.</td>`;
+        el.commentsTable.appendChild(tr);
+      }
+    }
+
+    function sentimentBadge(sent){
+      if (sent === "positivo") return `<span class="badge pos">positivo</span>`;
+      if (sent === "negativo") return `<span class="badge neg">negativo</span>`;
+      return `<span class="badge neu">neutro</span>`;
+    }
+
+    /**********************************************************************
+     * 8) Utilidades
+     **********************************************************************/
+    function median(arr){
+      if (!arr || !arr.length) return 0;
+      const s = arr.slice().sort((a,b)=>a-b);
+      const mid = Math.floor(s.length/2);
+      if (s.length % 2 === 0) return (s[mid-1] + s[mid]) / 2;
+      return s[mid];
+    }
+
+    function formatInt(n){
+      const x = Number(n);
+      if (!Number.isFinite(x)) return "0";
+      return Math.round(x).toLocaleString("es-ES");
+    }
+
+    function format1(n){
+      const x = Number(n);
+      if (!Number.isFinite(x)) return "0";
+      return (Math.round(x * 10) / 10).toLocaleString("es-ES");
+    }
+
+    function escapeHTML(s){
+      return String(s ?? "")
+        .replace(/&/g,"&amp;")
+        .replace(/</g,"&lt;")
+        .replace(/>/g,"&gt;")
+        .replace(/"/g,"&quot;")
+        .replace(/'/g,"&#039;");
+    }
+
+    function escapeAttr(s){
+      // Para atributos value=""
+      return escapeHTML(s).replace(/"/g,"&quot;");
+    }
+
+    // Estado inicial
+    resetAll();
+  </script>
+</body>
+</html>
